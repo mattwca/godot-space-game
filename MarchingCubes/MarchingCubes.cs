@@ -84,7 +84,7 @@ public class MarchingCubes {
 
         foreach (var face in faces) {
             var vertices = face.Select(face => this.EdgeToBoundaryVertex(face, fEval, x, y, z)).Reverse().ToList();
-            var nextVertexIndex = vertexOffset + outputVertices.Count;
+            var nextVertexIndex = outputVertices.Count + 1; // vertexOffset + outputVertices.Count;
 
             var tri = (nextVertexIndex, nextVertexIndex + 1, nextVertexIndex + 2);
             outputVertices.AddRange(vertices);
