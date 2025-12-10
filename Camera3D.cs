@@ -9,7 +9,7 @@ public partial class Camera3D : Godot.Camera3D
 
 	public override void _Ready()
 	{
-		Input.MouseMode = Input.MouseModeEnum.Captured;
+		Input.MouseMode = Input.MouseModeEnum.Visible;
 	}
 
 	public override void _Process(double delta)

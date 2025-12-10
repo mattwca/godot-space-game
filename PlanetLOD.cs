@@ -16,7 +16,7 @@ public partial class PlanetLOD : Node3D
   private Dictionary<Vector3I, (MeshInstance3D mesh, int currentLOD)> chunks = new Dictionary<Vector3I, (MeshInstance3D, int)>();
   private Vector3 sphereCenter = new Vector3(0, 0, 0);
   private float sphereRadius = 16f;
-  private int chunkCount = 1; // 4; // Number of chunks per axis (4x4x4 = 64 chunks total)
+  private int chunkCount = 4; // Number of chunks per axis (4x4x4 = 64 chunks total)
 
   public PlanetLOD()
   {
@@ -30,12 +30,16 @@ public partial class PlanetLOD : Node3D
   {
     camera = GetViewport().GetCamera3D() as Camera3D;
 
+    RenderingServer.SetDebugGenerateWireframes(true);
+    GetViewport().DebugDraw = Viewport.DebugDrawEnum.Wireframe;
+
     // Initialize all chunks
     GenerateInitialChunks();
   }
 
   private void GenerateInitialChunks()
   {
+    // Dimensions of a chunk in world space
     var chunkSize = (sphereRadius * 2f) / chunkCount;
 
     for (int x = 0; x < chunkCount; x++)
@@ -48,19 +52,28 @@ public partial class PlanetLOD : Node3D
           var worldPos = GetChunkWorldPosition(chunkPos, chunkSize);
 
           // Only generate chunks that intersect with the sphere
-          // if (IsChunkNearSphere(worldPos, chunkSize))
-          // {
-          GenerateChunk(chunkPos, 3); // Start with lowest LOD
-                                      // }
+          if (IsChunkNearSphere(worldPos, chunkSize))
+          {
+            GenerateChunk(chunkPos, 3); // Start with lowest LOD
+          }
         }
       }
     }
   }
 
+  private Color GenerateColourForChunkPos(Vector3I chunkPos) {
+    // Simple color based on chunk position for debugging
+    float r = (chunkPos.X % 2) / (float)(2 - 1);
+    float g = (chunkPos.Y % 2) / (float)(2 - 1);
+    float b = (chunkPos.Z % 2) / (float)(2 - 1);
+    return new Color(r, g, b);
+  }
+
   private Vector3 GetChunkWorldPosition(Vector3I chunkPos, float chunkSize)
   {
-    var offset = sphereCenter - new Vector3(sphereRadius, sphereRadius, sphereRadius);
-    return offset + new Vector3(chunkPos.X * chunkSize, chunkPos.Y * chunkSize, chunkPos.Z * chunkSize);
+    // var offset = sphereCenter - new Vector3(sphereRadius, sphereRadius, sphereRadius);
+    // return offset + new Vector3(chunkPos.X * chunkSize, chunkPos.Y * chunkSize, chunkPos.Z * chunkSize);
+    return new Vector3(chunkPos.X * chunkSize, chunkPos.Y * chunkSize, chunkPos.Z * chunkSize);
   }
 
   private bool IsChunkNearSphere(Vector3 chunkWorldPos, float chunkSize)
@@ -73,75 +86,58 @@ public partial class PlanetLOD : Node3D
     return distance < (sphereRadius + chunkRadius + 10f); // Add margin
   }
 
-  private void GenerateChunk(Vector3I chunkPos, int lodLevel)
+  private void GenerateChunk(Vector3I chunkPos, int levelOfDetail = 3)
   {
-    var resolution = lodResolutions[lodLevel];
-    var chunkSize = (sphereRadius * 2f) / chunkCount;
-    var worldPos = GetChunkWorldPosition(chunkPos, chunkSize);
-    var cellSize = chunkSize / resolution;
+    GD.Print("Generating chunk at ", chunkPos, ", LOD: ", levelOfDetail);
+
+    // Determine resolution (number of "cubes" in each chunk) based on chunk LOD
+    var resolution = lodResolutions[levelOfDetail];
+
+    var cellSize = (sphereRadius * 2f) / chunkCount / resolution;
 
     var marchingCubes = new MarchingCubes.MarchingCubes();
+    var worldPosition = new Vector3(chunkPos.X * sphereRadius, chunkPos.Y * sphereRadius, chunkPos.Z * sphereRadius);
 
     // Create density function for this chunk - convert local coords to world coords
     var circleFn = ((float x, float y, float z) pos) =>
     {
-      var (x, y, z) = pos;
+      var localPosition = new Vector3(pos.x, pos.y, pos.z);
 
-      var position = new Vector3(x, y, z);
-      var sphereCentre = new Vector3(16, 16, 16);
-      var diff = position - sphereCentre;
-      var distance = (float)Math.Sqrt(diff.X * diff.X + diff.Y * diff.Y + diff.Z * diff.Z);
+      // Convert from marching cubes local coordinates to world coordinates
+      var position = worldPosition + localPosition;
+      var distance = position.DistanceTo(sphereCenter);
 
       // Layer multiple noise frequencies
-      var noise1 = perlinNoise3D.GenerateNoiseValue(x * 0.1f, y * 0.1f, z * 0.1f) * 4f;
-      var noise2 = perlinNoise3D.GenerateNoiseValue(x * 0.3f, y * 0.3f, z * 0.3f) * 1f;
+      // var noise1 = perlinNoise3D.GenerateNoiseValue(worldX * 0.1f, worldY * 0.1f, worldZ * 0.1f) * 4f;
+      // var noise2 = perlinNoise3D.GenerateNoiseValue(worldX * 0.3f, worldY * 0.3f, worldZ * 0.3f) * 1f;
 
-      var radius = 16f + noise1 + noise2;
+      var radius = sphereRadius; // + noise1 + noise2;
 
       return distance - radius;
     };
 
-    // Func<(float x, float y, float z), float> circleFn = (pos) =>
-    // {
-    // 	var (localX, localY, localZ) = pos;
+    var circleObj = marchingCubes.MarchingCubes3D(circleFn, resolution, resolution, resolution);
 
-    // 	// Convert from marching cubes local coordinates to world coordinates
-    // 	var worldX = worldPos.X + localX * cellSize;
-    // 	var worldY = worldPos.Y + localY * cellSize;
-    // 	var worldZ = worldPos.Z + localZ * cellSize;
-
-    // 	var position = new Vector3(worldX, worldY, worldZ);
-    // 	var diff = position - sphereCenter;
-    // 	var distance = diff.Length();
-
-    // 	// Layer multiple noise frequencies
-    // 	var noise1 = perlinNoise3D.GenerateNoiseValue(worldX * 0.1f, worldY * 0.1f, worldZ * 0.1f) * 4f;
-    // 	var noise2 = perlinNoise3D.GenerateNoiseValue(worldX * 0.3f, worldY * 0.3f, worldZ * 0.3f) * 1f;
-
-    // 	var radius = sphereRadius + noise1 + noise2;
-
-    // 	return distance - radius;
-    // };
-
-    var circleObj = marchingCubes.MarchingCubes3D(circleFn, 32, 32, 32);
+    GD.Print(circleObj.Vertices.Count);
 
     // Remove old chunk if it exists
-    // if (chunks.ContainsKey(chunkPos))
-    // {
-    //   chunks[chunkPos].mesh.QueueFree();
-    //   chunks.Remove(chunkPos);
-    // }
+    if (chunks.ContainsKey(chunkPos))
+    {
+      chunks[chunkPos].mesh.QueueFree();
+      chunks.Remove(chunkPos);
+    }
 
     // Create mesh instance
     var meshInstance = new MeshInstance3D();
-    meshInstance.Position = worldPos;
+    // Don't set position - vertices are already in world space from the density function
+    meshInstance.Position = worldPosition;
     AddChild(meshInstance);
 
     // Generate vertex colors
-    // var colours = circleObj.Indices.SelectMany((triangle) =>
-    // {
-    //   return new List<Color>() { Colors.Red, Colors.Green, Colors.Blue };
-    // }).ToArray();
+    var colours = circleObj.Indices.SelectMany((triangle) =>
+    {
+      return new List<Color>() { GenerateColourForChunkPos(chunkPos), GenerateColourForChunkPos(chunkPos), GenerateColourForChunkPos(chunkPos) };
+    }).ToArray();
 
     // Create material
     var material = new StandardMaterial3D();
@@ -153,7 +149,9 @@ public partial class PlanetLOD : Node3D
 
     arrays.Resize((int)Mesh.ArrayType.Max);
     arrays[(int)Mesh.ArrayType.Vertex] = circleObj.Vertices
-      .Select(vertex => new Vector3(vertex.x, vertex.y, vertex.z))
+      .Select(vertex => {
+        return new Vector3(vertex.x, vertex.y, vertex.z);
+      })
       .Reverse()
       .ToArray();
     // arrays[(int)Mesh.ArrayType.Color] = colours;
@@ -163,13 +161,11 @@ public partial class PlanetLOD : Node3D
     meshInstance.Mesh = arrayMesh;
 
     // Store chunk
-    chunks[chunkPos] = (meshInstance, lodLevel);
+    chunks[chunkPos] = (meshInstance, levelOfDetail);
   }
 
   public override void _Process(double delta)
   {
-    return;
-
     if (camera == null) return;
 
     // Check each chunk and update LOD if needed
@@ -199,6 +195,7 @@ public partial class PlanetLOD : Node3D
     var maxUpdatesPerFrame = 2;
     foreach (var (pos, newLOD) in chunksToUpdate.Take(maxUpdatesPerFrame))
     {
+      Console.WriteLine("Updating chunk at " + pos + " to LOD " + newLOD);
       GenerateChunk(pos, newLOD);
     }
   }
