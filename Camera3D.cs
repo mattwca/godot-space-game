@@ -63,10 +63,19 @@ public partial class Camera3D : Godot.Camera3D
 			return;
 		}
 
-		if (@event is InputEventKey keyEvent && keyEvent.Keycode == Key.Space) {
-			var lightNode = GetNode<DirectionalLight3D>("../DirectionalLight3D");
-			lightNode.Position = this.Position;
-			lightNode.Rotation = this.Rotation;
+		if (@event is InputEventKey keyEvent) {
+			if (keyEvent.Keycode == Key.Space)
+			{
+				var lightNode = GetNode<DirectionalLight3D>("../DirectionalLight3D");
+				lightNode.Position = this.Position;
+				lightNode.Rotation = this.Rotation;
+				return;
+			}
+			
+			if (keyEvent.Keycode == Key.Escape)
+			{
+				Input.MouseMode = Input.MouseModeEnum.Visible;
+			}
 		}
 	}
 }
