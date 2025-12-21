@@ -47,9 +47,20 @@ public partial class Camera3D : Godot.Camera3D
 
 	public override void _Input(InputEvent @event)
 	{
+		if (@event is InputEventMouseButton mouseBtn)
+		{
+			if (mouseBtn.IsPressed() && !mouseBtn.IsEcho())
+			{
+				Input.MouseMode = Input.MouseModeEnum.ConfinedHidden;
+			}
+
+			return;
+		}
+
 		if (@event is InputEventMouseMotion mouseMotion) {
 			_rotationX += -mouseMotion.Relative.X * Constants.CameraLookSpeed;
 			_rotationY += -mouseMotion.Relative.Y * Constants.CameraLookSpeed;
+			return;
 		}
 
 		if (@event is InputEventKey keyEvent && keyEvent.Keycode == Key.Space) {
