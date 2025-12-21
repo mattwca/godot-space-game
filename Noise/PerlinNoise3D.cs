@@ -1,8 +1,7 @@
 using System;
-using System.Runtime.ConstrainedExecution;
 using Godot;
 
-public class PerlinNoise3D {
+public class PerlinNoise3D : IPerlinNoise {
 	private static readonly int PERMUTATION_SIZE = 256;
 
 	private int _seed;

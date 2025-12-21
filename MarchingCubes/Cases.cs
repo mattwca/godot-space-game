@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace MarchingCubes;
+namespace GodotSpaceGameTest.MarchingCubes;
 
 public static class Cases {
     public static List<List<int[]>> CubeCases = new List<List<int[]>>() {

@@ -15,7 +15,7 @@ radial_segments = 64
 rings = 16
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.9669024, 0.054156274, 0.24933036, 0.2202432, 0.6705005, 0.7084645, -0.12880674, 0.7399306, -0.6602372, -50, 50, 50)
+transform = Transform3D(0.9999992, 0, 0, 0, 1.0000006, 0, 0, 0, 1.0000004, 0, 0, 0)
 shadow_enabled = true
 shadow_bias = 2.195
 shadow_normal_bias = 9.048

@@ -1,11 +1,13 @@
 using Godot;
+using GodotSpaceGameTest.MarchingCubes;
+using GodotSpaceGameTest.Noise;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 public partial class AlternativePlanetLOD : Node3D
 {
-  private PerlinNoise3D perlinNoise3D;
+  private IPerlinNoise noiseGenerator;
   private Camera3D camera;
 
   // LOD settings
@@ -30,19 +32,19 @@ public partial class AlternativePlanetLOD : Node3D
 
   public AlternativePlanetLOD()
   {
-    perlinNoise3D = new PerlinNoise3D(1234);
-    perlinNoise3D.OctaveCount = 2;
-    perlinNoise3D.Frequency = 5f;
-    perlinNoise3D.Persistence = 0.3f;
-    perlinNoise3D.Lacunarity = 2f;
+    this.noiseGenerator = new CachedPerlinNoise3D(1234);
+    this.noiseGenerator.OctaveCount = 1;
+    this.noiseGenerator.Frequency = 3f;
+    this.noiseGenerator.Persistence = 0.2f;
+    this.noiseGenerator.Lacunarity = 2f;
   }
 
   public override void _Ready()
   {
     camera = GetViewport().GetCamera3D() as Camera3D;
 
-    // RenderingServer.SetDebugGenerateWireframes(true);
-    // GetViewport().DebugDraw = Viewport.DebugDrawEnum.Wireframe;
+    RenderingServer.SetDebugGenerateWireframes(true);
+    GetViewport().DebugDraw = Viewport.DebugDrawEnum.Wireframe;
 
     InitializeChunks();
   }
@@ -107,7 +109,9 @@ public partial class AlternativePlanetLOD : Node3D
     var chunkSize = chunkMax - chunkMin;
     
     // Use the alternative marching cubes implementation
-    var marchingCubes = new MarchingCubes.AlternativeMarchingCubes();
+    var marchingCubes = new MarchingCubes();
+
+    var halfRes = resolution / 2f;
 
     // Create density function that maps from marching cubes space to world space
     Func<(float x, float y, float z), float> densityFunction = (pos) =>
@@ -117,9 +121,9 @@ public partial class AlternativePlanetLOD : Node3D
       var (mcX, mcY, mcZ) = pos;
       
       // Convert from marching cubes centered coordinates to 0-based
-      float normalizedX = (mcX + resolution / 2f) / resolution;
-      float normalizedY = (mcY + resolution / 2f) / resolution;
-      float normalizedZ = (mcZ + resolution / 2f) / resolution;
+      float normalizedX = (mcX + halfRes) / resolution;
+      float normalizedY = (mcY + halfRes) / resolution;
+      float normalizedZ = (mcZ + halfRes) / resolution;
       
       // Map to world space
       var worldX = chunkMin.X + normalizedX * chunkSize.X;
@@ -130,7 +134,7 @@ public partial class AlternativePlanetLOD : Node3D
       float distanceToCenter = worldPos.DistanceTo(planetCenter);
       
       // Optional: Add noise for terrain features
-      float noise = perlinNoise3D.GenerateNoiseValue(worldX * 0.1f, worldY * 0.1f, worldZ * 0.1f) * 2f;
+      float noise = this.noiseGenerator.GenerateNoiseValue(worldX * 0.1f, worldY * 0.1f, worldZ * 0.1f);
       
       float effectiveRadius = planetRadius + noise;
       
@@ -176,7 +180,7 @@ public partial class AlternativePlanetLOD : Node3D
     // Create material
     var material = new StandardMaterial3D();
     material.VertexColorUseAsAlbedo = false;
-    material.AlbedoColor = new Color(0.7f, 0.7f, 0.7f);
+    material.AlbedoColor = Colors.Red;
 
     // Build mesh
     var arrayMesh = new ArrayMesh();
